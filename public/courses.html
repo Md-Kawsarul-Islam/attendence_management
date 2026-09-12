@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Course Management</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="logo">📚 Courses</div>
+    <ul class="nav-links">
+      <li><a href="/admin_page.html">Admin Dashboard</a></li>
+      <li><a href="/attendance_report.html">Reports</a></li>
+      <li><a href="/logout">Logout</a></li>
+    </ul>
+  </nav>
+
+  <main class="content">
+    <h1>Manage Courses</h1>
+
+    <div class="card">
+      <form onsubmit="event.preventDefault(); addCourse();">
+        <input type="text" id="courseName" placeholder="Course Name">
+        <button type="submit">Add Course</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Course List</h2>
+      <input type="text" id="courseSearch" placeholder="Search courses..." onkeyup="applyCourseFilter()">
+      <table class="student-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Course Name</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="courseList"></tbody>
+      </table>
+    </div>
+  </main>
+</body>
+</html>

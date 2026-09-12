@@ -1,0 +1,572 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Poppins", sans-serif;
+}
+
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #333;
+}
+
+/* Container */
+.container {
+    max-width: 1200px;
+    margin: auto;
+    padding: 20px;
+}
+
+/* Form Box */
+.form-box {
+    width: 100%;
+    max-width: 450px;
+    padding: 30px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 15px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    display: none;
+    animation: fadeIn 0.5s ease-in-out;
+}
+.form-box.active {
+    display: block;
+}
+
+h2 {
+    font-size: 28px;
+    text-align: center;
+    margin-bottom: 20px;
+    color: #fff;
+}
+
+/* Inputs */
+input, select {
+    padding: 12px;
+    width: 100%;
+    background: rgba(255,255,255,0.2);
+    border-radius: 8px;
+    border: none;
+    outline: none;
+    font-size: 16px;
+    margin-bottom: 20px;
+    color: #fff;
+}
+input::placeholder {
+    color: #ddd;
+}
+
+/* Buttons */
+button {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+    color: #fff;
+    border: none;
+    font-size: 16px;
+    font-weight: 500;
+}
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+}
+
+/* Error Messages */
+.error-message {
+    padding: 12px;
+    background: rgba(255, 0, 0, 0.2);
+    border-radius: 8px;
+    font-size: 14px;
+    color: #fff;
+    text-align: center;
+    margin-bottom: 20px;
+    display: none;
+}
+
+/* Table */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+th, td {
+    padding: 12px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+}
+th {
+    background: rgba(0,0,0,0.3);
+    font-weight: 600;
+}
+
+/* Action Buttons */
+.edit-btn, .delete-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+.edit-btn { background: #ff9800; color: #fff; }
+.delete-btn { background: #f44336; color: #fff; }
+.edit-btn:hover, .delete-btn:hover {
+    transform: scale(1.05);
+}
+/* Attendance Card */
+.attendance-card {
+    background: rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+
+/* Attendance Table */
+.attendance-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.attendance-table th, .attendance-table td {
+    padding: 12px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+}
+
+.attendance-table th {
+    background: rgba(0,0,0,0.3);
+    font-weight: 600;
+}
+
+/* Attendance Buttons */
+/* Base Attendance Buttons */
+.attendance-btn {
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    background: linear-gradient(135deg, #667eea, #764ba2); /* purple gradient */
+    color: #fff;
+    opacity: 0.7;
+    transition: all 0.3s ease;
+}
+
+/* Hover Effect */
+.attendance-btn:hover {
+    opacity: 1;
+    transform: scale(1.05);
+    box-shadow: 0 0 12px rgba(118, 75, 162, 0.6);
+}
+
+/* Active State */
+.attendance-btn.active {
+    opacity: 1;
+    box-shadow: 0 0 15px rgba(118, 75, 162, 0.8);
+}
+
+/* Variants */
+.present-btn {
+    background: linear-gradient(135deg, #00c6ff, #0072ff); /* blue gradient */
+}
+.present-btn:hover, .present-btn.active {
+    box-shadow: 0 0 15px rgba(0, 114, 255, 0.8);
+}
+
+.absent-btn {
+    background: linear-gradient(135deg, #ff9a9e, #fad0c4); /* soft pink gradient */
+}
+.absent-btn:hover, .absent-btn.active {
+    box-shadow: 0 0 15px rgba(255, 154, 158, 0.8);
+}
+
+
+/* Active State */
+button.active {
+    opacity: 1 !important;
+    box-shadow: 0 0 10px rgba(255,255,255,0.4);
+}
+
+
+/* Navbar */
+.navbar {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    padding: 15px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #fff;
+    position: relative;
+}
+.navbar .logo {
+    font-size: 22px;
+    font-weight: 700;
+}
+.navbar .nav-links {
+    list-style: none;
+    display: flex;
+    gap: 25px;
+}
+.navbar .nav-links li a {
+    color: #fff;
+    text-decoration: none;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: 0.3s;
+}
+.navbar .nav-links li a:hover {
+    color: #ffd700;
+    transform: translateY(-2px);
+}
+
+/* Hamburger */
+.hamburger {
+    display: none;
+    font-size: 24px;
+    background: none;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 220px;
+    background: rgba(255,255,255,0.1);
+    backdrop-filter: blur(10px);
+    padding: 20px;
+    transition: transform 0.3s ease;
+}
+.sidebar ul { list-style: none; }
+.sidebar ul li { margin: 15px 0; }
+.sidebar ul li a, .sidebar ul li button {
+    color: #fff;
+    text-decoration: none;
+    font-weight: 500;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    transition: 0.3s;
+}
+.sidebar ul li a:hover, .sidebar ul li button:hover {
+    color: #ffd700;
+}
+
+
+/* Dashboard Layout */
+.dashboard { display: flex; min-height: calc(100vh - 60px); }
+
+/* Main Content */
+.content { flex: 1; padding: 30px; color: #fff; }
+.card {
+    background: rgba(255,255,255,0.15);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+.card h2 { margin-bottom: 15px; font-size: 22px; color: #fff; }
+
+
+.section.hidden {
+  display: none;
+}
+
+.sidebar button {
+  width: 100%;
+  padding: 10px;
+  background: transparent;
+  border: none;
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+  font-size: 16px;
+  transition: 0.3s;
+}
+.sidebar button:hover {
+  color: #ffd700;
+  transform: translateX(5px);
+}
+
+/* User Navbar */
+.user-navbar {
+    background: linear-gradient(135deg, #00c6ff, #0072ff); /* Blue theme */
+}
+.user-navbar .logo {
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+}
+.user-navbar .nav-links li a:hover {
+    color: #ffeb3b; /* Yellow hover for contrast */
+}
+
+/* Submit Button */
+.submit-btn {
+    margin-top: 15px;
+    width: auto;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #00c6ff, #0072ff);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.3s;
+    color: #fff;
+    border: none;
+    font-size: 16px;
+    font-weight: 500;
+}
+.submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+}
+
+/* Dropdown Styling */
+select {
+    padding: 12px;
+    width: 100%;
+    background: rgba(0,0,0,0.6);   /* dark background */
+    color: #fff;                   /* white text */
+    border-radius: 8px;
+    border: none;
+    outline: none;
+    font-size: 16px;
+    margin-bottom: 20px;
+    cursor: pointer;
+    appearance: none;               /* remove default arrow */
+}
+
+/* Dropdown Options */
+select option {
+    background: #222;   /* dark background for options */
+    color: #fff;        /* white text */
+}
+
+
+/* Student Table */
+.student-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+}
+
+.student-table th, .student-table td {
+    padding: 12px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,0.15);
+    color: #fff;
+    font-size: 15px;
+}
+
+.student-table th {
+    background: rgba(0,0,0,0.3);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+/* Row hover effect */
+.student-table tr:hover {
+    background: rgba(255,255,255,0.08);
+    transition: 0.3s;
+}
+
+/* Action Buttons */
+.edit-btn, .delete-btn {
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: 0.3s;
+    margin: 0 4px;
+}
+
+/* Premium gradient buttons */
+.edit-btn {
+    background: linear-gradient(135deg, #00c6ff, #0072ff); /* blue gradient */
+    color: #fff;
+}
+.edit-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 10px rgba(0,114,255,0.6);
+}
+
+.delete-btn {
+    background: linear-gradient(135deg, #ff9a9e, #fad0c4); /* soft pink gradient */
+    color: #fff;
+}
+.delete-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 10px rgba(255,154,158,0.6);
+}
+
+.search-filter {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.search-filter input, .search-filter select, .search-filter button {
+    padding: 10px;
+    border-radius: 8px;
+    border: none;
+    outline: none;
+    font-size: 14px;
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    transition: 0.3s;
+}
+
+.search-filter input::placeholder {
+    color: #ccc;
+}
+
+.search-filter button {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    cursor: pointer;
+    font-weight: 600;
+}
+.search-filter button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 10px rgba(118, 75, 162, 0.6);
+}
+
+/* Landing Page */
+.index-body {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    color: #fff;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.landing-container {
+    text-align: center;
+}
+
+.landing-container h1 {
+    font-size: 36px;
+    margin-bottom: 10px;
+}
+
+.tagline {
+    font-size: 18px;
+    margin-bottom: 40px;
+    opacity: 0.8;
+}
+
+/* Role Cards */
+.role-cards {
+    display: flex;
+    gap: 40px;
+    justify-content: center;
+}
+
+.role-card {
+    background: rgba(255,255,255,0.1);
+    backdrop-filter: blur(10px);
+    padding: 30px;
+    border-radius: 12px;
+    width: 250px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    transition: 0.3s;
+}
+
+.role-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+}
+
+.role-card i {
+    font-size: 40px;
+    margin-bottom: 15px;
+}
+
+.role-card h2 {
+    margin-bottom: 10px;
+}
+
+.role-btn {
+    display: inline-block;
+    margin-top: 15px;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #00c6ff, #0072ff);
+    border-radius: 8px;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+    transition: 0.3s;
+}
+
+.role-btn:hover {
+    background: linear-gradient(135deg, #43e97b, #38f9d7);
+    box-shadow: 0 0 12px rgba(0,0,0,0.3);
+}
+
+
+
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@media (max-width: 768px) {
+    .navbar .nav-links {
+        display: none;
+        flex-direction: column;
+        background: rgba(0,0,0,0.8);
+        position: absolute;
+        top: 60px;
+        right: 0;
+        width: 200px;
+        padding: 20px;
+        border-radius: 8px;
+    }
+    .navbar .nav-links.show {
+        display: flex;
+    }
+    .hamburger {
+        display: block;
+    }
+    .sidebar {
+        position: fixed;
+        top: 60px;
+        left: -220px;
+        height: 100%;
+        transform: translateX(0);
+    }
+    .sidebar.show {
+        left: 0;
+    }
+}
