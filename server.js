@@ -1,3 +1,4 @@
+```javascript
 const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
@@ -6,283 +7,1121 @@ const path = require('path');
 
 const app = express();
 
-// Render/other reverse proxies
-if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
+// ======================================================
+// CONFIGURATION
+// ======================================================
 
-// ======================= MIDDLEWARE =======================
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-app.use(express.static('public'));
+const PORT = process.env.PORT || 3000;
 
-app.use(session({
-    secret: process.env.SESSION_SECRET || 'supersecretkey',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production'
+const FRONTEND_URL =
+    process.env.FRONTEND_URL ||
+    'https://attendence-management-nine.vercel.app';
+
+
+// ======================================================
+// TRUST RENDER PROXY
+// ======================================================
+
+if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+}
+
+
+// ======================================================
+// CORS
+// ======================================================
+
+app.use((req, res, next) => {
+
+    const origin = req.headers.origin;
+
+    if (origin === FRONTEND_URL) {
+        res.header('Access-Control-Allow-Origin', origin);
+        res.header('Access-Control-Allow-Credentials', 'true');
     }
+
+    res.header(
+        'Access-Control-Allow-Methods',
+        'GET,POST,PUT,DELETE,OPTIONS'
+    );
+
+    res.header(
+        'Access-Control-Allow-Headers',
+        'Content-Type'
+    );
+
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(204);
+    }
+
+    next();
+});
+
+
+// ======================================================
+// MIDDLEWARE
+// ======================================================
+
+app.use(express.urlencoded({
+    extended: true
 }));
 
-// ======================= AUTH =======================
+app.use(express.json());
 
-// Register
+
+// Public frontend files
+app.use(express.static(
+    path.join(__dirname, 'public')
+));
+
+
+// ======================================================
+// SESSION
+// ======================================================
+
+app.use(
+    session({
+        secret:
+            process.env.SESSION_SECRET ||
+            'change-this-session-secret',
+
+        resave: false,
+
+        saveUninitialized: false,
+
+        cookie: {
+            httpOnly: true,
+
+            // Required because Vercel and Render
+            // are different origins.
+            sameSite:
+                process.env.NODE_ENV === 'production'
+                    ? 'none'
+                    : 'lax',
+
+            secure:
+                process.env.NODE_ENV === 'production',
+
+            maxAge: 1000 * 60 * 60 * 24 * 7
+        }
+    })
+);
+
+
+// ======================================================
+// HELPER FUNCTIONS
+// ======================================================
+
+function sendError(res, status, message) {
+    return res.status(status).json({
+        success: false,
+        message
+    });
+}
+
+
+function sendSuccess(res, message, extra = {}) {
+    return res.json({
+        success: true,
+        message,
+        ...extra
+    });
+}
+
+
+// ======================================================
+// AUTH
+// ======================================================
+
+
+// ====================== REGISTER ======================
+
 app.post('/register', async (req, res) => {
-    const { name, email, password, role } = req.body;
+
+    const {
+        name,
+        email,
+        password,
+        role
+    } = req.body;
+
     try {
-        // Only allow 'admin' role if the logged-in user is an admin
-        if (role === 'admin' && req.session.role !== 'admin') {
-            req.session.register_error = "Only an admin can create another admin";
-            req.session.active_form = "register";
-            return res.redirect('/index.html');
+
+        if (!name || !email || !password || !role) {
+            return sendError(
+                res,
+                400,
+                'All fields are required'
+            );
         }
 
-        // Hash the password
-        const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Check if the email is already registered
-        const [rows] = await conn.query("SELECT email FROM users WHERE email = ?", [email]);
-        if (rows.length > 0) {
-            req.session.register_error = "Email already registered";
-            req.session.active_form = "register";
-            return res.redirect('/index.html');
+        // Only an existing admin can create another admin.
+        if (
+            role === 'admin' &&
+            req.session.role !== 'admin'
+        ) {
+            return sendError(
+                res,
+                403,
+                'Only an admin can create another admin'
+            );
         }
 
-        // Insert the new user into the database
-        await conn.query(
-            "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)",
-            [name, email, hashedPassword, role]
+
+        // Check existing email
+        const [rows] = await conn.query(
+            'SELECT email FROM users WHERE email = ?',
+            [email]
         );
-        
-        // Redirect to the login page
-        res.redirect('/index.html');
-    } catch (err) {
-        res.status(500).send("Error registering user");
-    }
-});
 
-// Login
-app.post('/login', async (req, res) => {
-    const { email, password } = req.body;
-    try {
-        const [rows] = await conn.query("SELECT * FROM users WHERE email = ?", [email]);
+
         if (rows.length > 0) {
-            const user = rows[0];
-            const match = await bcrypt.compare(password, user.password);
-
-            if (match) {
-                req.session.name = user.name;
-                req.session.email = user.email;
-                req.session.role = user.role;
-                return res.redirect(user.role === 'admin' ? '/admin_page.html' : '/user_page.html');
-            }
+            return sendError(
+                res,
+                409,
+                'Email already registered'
+            );
         }
-        req.session.login_error = "Incorrect email or password";
-        req.session.active_form = "login";
-        return res.redirect('/index.html');
+
+
+        // Hash password
+        const hashedPassword =
+            await bcrypt.hash(password, 10);
+
+
+        // Insert user
+        await conn.query(
+            `
+            INSERT INTO users
+            (name, email, password, role)
+            VALUES (?, ?, ?, ?)
+            `,
+            [
+                name,
+                email,
+                hashedPassword,
+                role
+            ]
+        );
+
+
+        return sendSuccess(
+            res,
+            'Registration successful. Please login.'
+        );
+
     } catch (err) {
-        res.status(500).send("Error logging in");
+
+        console.error(
+            'REGISTER ERROR:',
+            err
+        );
+
+        return sendError(
+            res,
+            500,
+            'Error registering user'
+        );
     }
 });
 
-// Session Data for Frontend
+
+// ====================== LOGIN ======================
+
+app.post('/login', async (req, res) => {
+
+    const {
+        email,
+        password
+    } = req.body;
+
+
+    try {
+
+        if (!email || !password) {
+            return sendError(
+                res,
+                400,
+                'Email and password are required'
+            );
+        }
+
+
+        const [rows] = await conn.query(
+            'SELECT * FROM users WHERE email = ?',
+            [email]
+        );
+
+
+        if (rows.length === 0) {
+            return sendError(
+                res,
+                401,
+                'Incorrect email or password'
+            );
+        }
+
+
+        const user = rows[0];
+
+
+        const match =
+            await bcrypt.compare(
+                password,
+                user.password
+            );
+
+
+        if (!match) {
+            return sendError(
+                res,
+                401,
+                'Incorrect email or password'
+            );
+        }
+
+
+        // ==============================
+        // CREATE SESSION
+        // ==============================
+
+        req.session.name = user.name;
+
+        req.session.email = user.email;
+
+        req.session.role = user.role;
+
+
+        // Explicitly save session before
+        // sending response.
+        req.session.save((err) => {
+
+            if (err) {
+
+                console.error(
+                    'SESSION SAVE ERROR:',
+                    err
+                );
+
+                return sendError(
+                    res,
+                    500,
+                    'Unable to create login session'
+                );
+            }
+
+
+            return sendSuccess(
+                res,
+                'Login successful',
+                {
+                    role: user.role,
+                    name: user.name,
+                    email: user.email
+                }
+            );
+
+        });
+
+    } catch (err) {
+
+        console.error(
+            'LOGIN ERROR:',
+            err
+        );
+
+        return sendError(
+            res,
+            500,
+            'Error logging in'
+        );
+    }
+});
+
+
+// ======================================================
+// SESSION DATA
+// ======================================================
+
 app.get('/session-data', (req, res) => {
+
     res.json({
-        login_error: req.session.login_error || null,
-        register_error: req.session.register_error || null,
-        active_form: req.session.active_form || "login"
+
+        login_error:
+            req.session.login_error || null,
+
+        register_error:
+            req.session.register_error || null,
+
+        active_form:
+            req.session.active_form || 'login'
     });
+
+
+    // Clear old messages
+    delete req.session.login_error;
+    delete req.session.register_error;
+    delete req.session.active_form;
 });
 
-// Current User API
+
+// ======================================================
+// CURRENT USER
+// ======================================================
+
 app.get('/currentUser', (req, res) => {
-    if (req.session.name) {
-        res.json({ name: req.session.name, role: req.session.role });
-    } else {
-        res.json({ name: "Guest", role: "none" });
-    }
-});
 
-// Logout
-app.get('/logout', (req, res) => {
-    req.session.destroy(() => {
-        res.redirect('/index.html');
+    if (req.session.name) {
+
+        return res.json({
+            success: true,
+            loggedIn: true,
+            name: req.session.name,
+            email: req.session.email,
+            role: req.session.role
+        });
+
+    }
+
+
+    return res.json({
+        success: true,
+        loggedIn: false,
+        name: 'Guest',
+        role: 'none'
     });
 });
 
-// ======================= PAGE PROTECTION =======================
+
+// ======================================================
+// LOGOUT
+// ======================================================
+
+app.get('/logout', (req, res) => {
+
+    req.session.destroy((err) => {
+
+        if (err) {
+
+            console.error(
+                'LOGOUT ERROR:',
+                err
+            );
+
+            return sendError(
+                res,
+                500,
+                'Logout failed'
+            );
+        }
+
+
+        res.clearCookie('connect.sid', {
+            httpOnly: true,
+            sameSite:
+                process.env.NODE_ENV === 'production'
+                    ? 'none'
+                    : 'lax',
+            secure:
+                process.env.NODE_ENV === 'production'
+        });
+
+
+        return sendSuccess(
+            res,
+            'Logout successful'
+        );
+    });
+});
+
+
+// ======================================================
+// PAGE PROTECTION
+// ======================================================
 
 function protect(role) {
+
     return (req, res, next) => {
-        if (req.session.role === role) return next();
-        res.redirect('/index.html?error=unauthorized');
+
+        if (
+            req.session &&
+            req.session.role === role
+        ) {
+            return next();
+        }
+
+
+        return res.status(401).json({
+            success: false,
+            message: 'Unauthorized'
+        });
     };
 }
 
-app.get('/admin_page.html', protect('admin'), (req, res) => {
-    res.sendFile(path.join(__dirname, 'private', 'admin_page.html'));
-});
 
-app.get('/user_page.html', protect('user'), (req, res) => {
-    res.sendFile(path.join(__dirname, 'private', 'user_page.html'));
-});
+// ======================================================
+// ADMIN PAGE
+// ======================================================
 
-app.get('/attendance_report.html', protect('admin'), (req, res) => {
-    res.sendFile(path.join(__dirname, 'private', 'attendance_report.html'));
-});
+app.get(
+    '/admin_page.html',
+    protect('admin'),
+    (req, res) => {
 
-// ======================= STUDENTS =======================
+        res.sendFile(
+            path.join(
+                __dirname,
+                'private',
+                'admin_page.html'
+            )
+        );
+    }
+);
+
+
+// ======================================================
+// USER PAGE
+// ======================================================
+
+app.get(
+    '/user_page.html',
+    protect('user'),
+    (req, res) => {
+
+        res.sendFile(
+            path.join(
+                __dirname,
+                'private',
+                'user_page.html'
+            )
+        );
+    }
+);
+
+
+// ======================================================
+// ATTENDANCE REPORT
+// ======================================================
+
+app.get(
+    '/attendance_report.html',
+    protect('admin'),
+    (req, res) => {
+
+        res.sendFile(
+            path.join(
+                __dirname,
+                'private',
+                'attendance_report.html'
+            )
+        );
+    }
+);
+
+
+// ======================================================
+// STUDENTS
+// ======================================================
 
 app.get('/students', async (req, res) => {
+
     try {
-        const [rows] = await conn.query("SELECT * FROM students ORDER BY sid ASC");
+
+        const [rows] = await conn.query(
+            'SELECT * FROM students ORDER BY sid ASC'
+        );
+
         res.json(rows);
+
     } catch (err) {
-        res.status(500).send(err);
+
+        console.error(
+            'GET STUDENTS ERROR:',
+            err
+        );
+
+        res.status(500).json({
+            success: false,
+            message: 'Failed to load students'
+        });
     }
 });
 
-app.post('/addStudent', protect('admin'), async (req, res) => {
-    const { sid, name, dept } = req.body;
-    try {
-        await conn.query("INSERT INTO students (sid, name, dept) VALUES (?, ?, ?)", [sid, name, dept]);
-        res.send("Student Added");
-    } catch (err) {
-        res.status(500).send(err);
-    }
-});
 
-app.delete('/deleteStudent/:id', async (req, res) => {
-    try {
-        await conn.query("DELETE FROM students WHERE id=?", [req.params.id]);
-        res.send("Deleted");
-    } catch (err) {
-        res.status(500).send(err);
-    }
-});
+app.post(
+    '/addStudent',
+    protect('admin'),
+    async (req, res) => {
 
-app.put('/updateStudent/:id', async (req, res) => {
-    const { name, dept } = req.body;
-    try {
-        await conn.query("UPDATE students SET name=?, dept=? WHERE id=?", [name, dept, req.params.id]);
-        res.send("Updated");
-    } catch (err) {
-        res.status(500).send(err);
-    }
-});
+        const {
+            sid,
+            name,
+            dept
+        } = req.body;
 
-// ======================= COURSES =======================
+        try {
+
+            await conn.query(
+                `
+                INSERT INTO students
+                (sid, name, dept)
+                VALUES (?, ?, ?)
+                `,
+                [
+                    sid,
+                    name,
+                    dept
+                ]
+            );
+
+            res.json({
+                success: true,
+                message: 'Student Added'
+            });
+
+        } catch (err) {
+
+            console.error(
+                'ADD STUDENT ERROR:',
+                err
+            );
+
+            res.status(500).json({
+                success: false,
+                message: 'Failed to add student'
+            });
+        }
+    }
+);
+
+
+app.delete(
+    '/deleteStudent/:id',
+    protect('admin'),
+    async (req, res) => {
+
+        try {
+
+            await conn.query(
+                'DELETE FROM students WHERE id = ?',
+                [req.params.id]
+            );
+
+            res.json({
+                success: true,
+                message: 'Deleted'
+            });
+
+        } catch (err) {
+
+            console.error(
+                'DELETE STUDENT ERROR:',
+                err
+            );
+
+            res.status(500).json({
+                success: false,
+                message: 'Failed to delete student'
+            });
+        }
+    }
+);
+
+
+app.put(
+    '/updateStudent/:id',
+    protect('admin'),
+    async (req, res) => {
+
+        const {
+            name,
+            dept
+        } = req.body;
+
+        try {
+
+            await conn.query(
+                `
+                UPDATE students
+                SET name = ?, dept = ?
+                WHERE id = ?
+                `,
+                [
+                    name,
+                    dept,
+                    req.params.id
+                ]
+            );
+
+            res.json({
+                success: true,
+                message: 'Updated'
+            });
+
+        } catch (err) {
+
+            console.error(
+                'UPDATE STUDENT ERROR:',
+                err
+            );
+
+            res.status(500).json({
+                success: false,
+                message: 'Failed to update student'
+            });
+        }
+    }
+);
+
+
+// ======================================================
+// COURSES
+// ======================================================
 
 app.get('/courses', async (req, res) => {
-    try {
-        const [rows] = await conn.query("SELECT * FROM courses");
-        res.json(rows);
-    } catch (err) {
-        res.status(500).send(err);
-    }
-});
 
-app.post('/addCourse', protect('admin'), async (req, res) => {
-    const { course_name } = req.body;
-    if (!course_name) return res.status(400).send("Course name required");
     try {
-        await conn.query("INSERT INTO courses (course_name) VALUES (?)", [course_name]);
-        res.send("Course Added");
-    } catch (err) {
-        res.status(500).send(err);
-    }
-});
 
-app.delete('/deleteCourse/:id', async (req, res) => {
-    try {
-        await conn.query("DELETE FROM courses WHERE id=?", [req.params.id]);
-        res.send("Course Deleted");
-    } catch (err) {
-        res.status(500).send(err);
-    }
-});
-
-app.put('/updateCourse/:id', async (req, res) => {
-    const { course_name } = req.body;
-    if (!course_name) return res.status(400).send("Course name required");
-    try {
-        await conn.query("UPDATE courses SET course_name=? WHERE id=?", [course_name, req.params.id]);
-        res.send("Course Updated");
-    } catch (err) {
-        res.status(500).send(err);
-    }
-});
-
-// ======================= ATTENDANCE =======================
-
-app.post('/submitAttendance', async (req, res) => {
-    const { course_id, date, attendance } = req.body;
-    const values = attendance.map(a => [a.student_id, course_id, date, a.status]);
-    try {
-        await conn.query(
-            "INSERT INTO attendance (student_id, course_id, date, status) VALUES ?",
-            [values]
+        const [rows] = await conn.query(
+            'SELECT * FROM courses'
         );
-        res.send("Attendance Saved");
-    } catch (err) {
-        res.status(500).send(err);
-    }
-});
 
-app.get('/attendance/:date', async (req, res) => {
-    try {
-        const [rows] = await conn.query("SELECT * FROM attendance WHERE date=?", [req.params.date]);
         res.json(rows);
+
     } catch (err) {
-        res.status(500).send(err);
+
+        console.error(
+            'GET COURSES ERROR:',
+            err
+        );
+
+        res.status(500).json({
+            success: false,
+            message: 'Failed to load courses'
+        });
     }
 });
 
-app.get('/attendanceReport', async (req, res) => {
-    const { course_id, date } = req.query;
-    if (!course_id || !date) return res.status(400).send("Course ID and Date are required");
 
-    const sql = `
-        SELECT 
-            attendance.id,
-            students.sid,
-            students.name,
-            courses.course_name,
-            attendance.status,
-            attendance.date
-        FROM attendance
-        JOIN students ON attendance.student_id = students.id
-        JOIN courses ON attendance.course_id = courses.id
-        WHERE attendance.course_id = ? AND attendance.date = ?
-        ORDER BY students.sid ASC
-    `;
-    try {
-        const [rows] = await conn.query(sql, [course_id, date]);
-        res.json(rows);
-    } catch (err) {
-        res.status(500).send(err);
+app.post(
+    '/addCourse',
+    protect('admin'),
+    async (req, res) => {
+
+        const {
+            course_name
+        } = req.body;
+
+        if (!course_name) {
+
+            return res.status(400).json({
+                success: false,
+                message: 'Course name required'
+            });
+        }
+
+        try {
+
+            await conn.query(
+                `
+                INSERT INTO courses
+                (course_name)
+                VALUES (?)
+                `,
+                [course_name]
+            );
+
+            res.json({
+                success: true,
+                message: 'Course Added'
+            });
+
+        } catch (err) {
+
+            console.error(
+                'ADD COURSE ERROR:',
+                err
+            );
+
+            res.status(500).json({
+                success: false,
+                message: 'Failed to add course'
+            });
+        }
     }
-});
+);
 
-app.put('/updateAttendance', async (req, res) => {
-    const updates = req.body.updates;
-    try {
-        await Promise.all(updates.map(u =>
-            conn.query("UPDATE attendance SET status=? WHERE id=?", [u.status, u.id])
-        ));
-        res.send("Updated");
-    } catch (err) {
-        res.status(500).send("Error updating attendance");
+
+app.delete(
+    '/deleteCourse/:id',
+    protect('admin'),
+    async (req, res) => {
+
+        try {
+
+            await conn.query(
+                'DELETE FROM courses WHERE id = ?',
+                [req.params.id]
+            );
+
+            res.json({
+                success: true,
+                message: 'Course Deleted'
+            });
+
+        } catch (err) {
+
+            console.error(
+                'DELETE COURSE ERROR:',
+                err
+            );
+
+            res.status(500).json({
+                success: false,
+                message: 'Failed to delete course'
+            });
+        }
     }
+);
+
+
+app.put(
+    '/updateCourse/:id',
+    protect('admin'),
+    async (req, res) => {
+
+        const {
+            course_name
+        } = req.body;
+
+        if (!course_name) {
+
+            return res.status(400).json({
+                success: false,
+                message: 'Course name required'
+            });
+        }
+
+        try {
+
+            await conn.query(
+                `
+                UPDATE courses
+                SET course_name = ?
+                WHERE id = ?
+                `,
+                [
+                    course_name,
+                    req.params.id
+                ]
+            );
+
+            res.json({
+                success: true,
+                message: 'Course Updated'
+            });
+
+        } catch (err) {
+
+            console.error(
+                'UPDATE COURSE ERROR:',
+                err
+            );
+
+            res.status(500).json({
+                success: false,
+                message: 'Failed to update course'
+            });
+        }
+    }
+);
+
+
+// ======================================================
+// ATTENDANCE
+// ======================================================
+
+app.post(
+    '/submitAttendance',
+    protect('admin'),
+    async (req, res) => {
+
+        const {
+            course_id,
+            date,
+            attendance
+        } = req.body;
+
+
+        if (
+            !course_id ||
+            !date ||
+            !Array.isArray(attendance) ||
+            attendance.length === 0
+        ) {
+
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid attendance data'
+            });
+        }
+
+
+        const values = attendance.map(
+            (a) => [
+                a.student_id,
+                course_id,
+                date,
+                a.status
+            ]
+        );
+
+
+        try {
+
+            await conn.query(
+                `
+                INSERT INTO attendance
+                (student_id, course_id, date, status)
+                VALUES ?
+                `,
+                [values]
+            );
+
+            res.json({
+                success: true,
+                message: 'Attendance Saved'
+            });
+
+        } catch (err) {
+
+            console.error(
+                'SUBMIT ATTENDANCE ERROR:',
+                err
+            );
+
+            res.status(500).json({
+                success: false,
+                message: 'Failed to save attendance'
+            });
+        }
+    }
+);
+
+
+app.get(
+    '/attendance/:date',
+    async (req, res) => {
+
+        try {
+
+            const [rows] = await conn.query(
+                `
+                SELECT *
+                FROM attendance
+                WHERE date = ?
+                `,
+                [req.params.date]
+            );
+
+            res.json(rows);
+
+        } catch (err) {
+
+            console.error(
+                'GET ATTENDANCE ERROR:',
+                err
+            );
+
+            res.status(500).json({
+                success: false,
+                message: 'Failed to load attendance'
+            });
+        }
+    }
+);
+
+
+app.get(
+    '/attendanceReport',
+    protect('admin'),
+    async (req, res) => {
+
+        const {
+            course_id,
+            date
+        } = req.query;
+
+
+        if (!course_id || !date) {
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    'Course ID and Date are required'
+            });
+        }
+
+
+        const sql = `
+            SELECT
+                attendance.id,
+                students.sid,
+                students.name,
+                courses.course_name,
+                attendance.status,
+                attendance.date
+            FROM attendance
+            JOIN students
+                ON attendance.student_id = students.id
+            JOIN courses
+                ON attendance.course_id = courses.id
+            WHERE attendance.course_id = ?
+                AND attendance.date = ?
+            ORDER BY students.sid ASC
+        `;
+
+
+        try {
+
+            const [rows] =
+                await conn.query(
+                    sql,
+                    [
+                        course_id,
+                        date
+                    ]
+                );
+
+            res.json(rows);
+
+        } catch (err) {
+
+            console.error(
+                'ATTENDANCE REPORT ERROR:',
+                err
+            );
+
+            res.status(500).json({
+                success: false,
+                message:
+                    'Failed to load attendance report'
+            });
+        }
+    }
+);
+
+
+app.put(
+    '/updateAttendance',
+    protect('admin'),
+    async (req, res) => {
+
+        const updates =
+            req.body.updates;
+
+
+        if (!Array.isArray(updates)) {
+
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid updates'
+            });
+        }
+
+
+        try {
+
+            await Promise.all(
+                updates.map(
+                    (u) =>
+                        conn.query(
+                            `
+                            UPDATE attendance
+                            SET status = ?
+                            WHERE id = ?
+                            `,
+                            [
+                                u.status,
+                                u.id
+                            ]
+                        )
+                )
+            );
+
+
+            res.json({
+                success: true,
+                message: 'Updated'
+            });
+
+        } catch (err) {
+
+            console.error(
+                'UPDATE ATTENDANCE ERROR:',
+                err
+            );
+
+            res.status(500).json({
+                success: false,
+                message:
+                    'Error updating attendance'
+            });
+        }
+    }
+);
+
+
+// ======================================================
+// HEALTH CHECK
+// ======================================================
+
+app.get('/health', (req, res) => {
+
+    res.json({
+        ok: true,
+        message: 'Attendance backend is running'
+    });
+
 });
 
-// Simple health check (does not query the database)
-app.get('/health', (req, res) => res.json({ ok: true }));
 
-// ======================= SERVER =======================
+// ======================================================
+// ROOT
+// ======================================================
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+app.get('/', (req, res) => {
+
+    res.json({
+        success: true,
+        message: 'Attendance Management API is running'
+    });
+
 });
+
+
+// ======================================================
+// SERVER
+// ======================================================
+
+if (require.main === module) {
+
+    app.listen(
+        PORT,
+        () => {
+
+            console.log(
+                `Server running on port ${PORT}`
+            );
+
+            console.log(
+                `Frontend URL: ${FRONTEND_URL}`
+            );
+        }
+    );
+}
+
+
+module.exports = app;
+```

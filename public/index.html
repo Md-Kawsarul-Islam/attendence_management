@@ -1,63 +1,370 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <title>Attendance System - Login & Register</title>
+
   <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+  >
 </head>
+
 <body class="login-body">
+
   <div class="container">
-    <!-- Login Form -->
+
+    <!-- ==================== LOGIN FORM ==================== -->
     <div class="form-box active" id="login-form">
-      <form action="/login" method="POST">
-        <h2><i class="fas fa-sign-in-alt"></i> Login</h2>
+
+      <form id="loginForm">
+
+        <h2>
+          <i class="fas fa-sign-in-alt"></i>
+          Login
+        </h2>
+
         <div class="input-group">
           <i class="fas fa-envelope"></i>
-          <input type="email" name="email" placeholder="Email" required>
+          <input
+            type="email"
+            id="loginEmail"
+            name="email"
+            placeholder="Email"
+            required
+          >
         </div>
+
         <div class="input-group">
           <i class="fas fa-lock"></i>
-          <input type="password" name="password" placeholder="Password" required>
+          <input
+            type="password"
+            id="loginPassword"
+            name="password"
+            placeholder="Password"
+            required
+          >
         </div>
-        <button type="submit" class="login-btn">Login</button>
-        <p>Don't have an account? <a href="#" onclick="showForm('register-form')">Register</a></p>
+
+        <button type="submit" class="login-btn">
+          Login
+        </button>
+
+        <p>
+          Don't have an account?
+          <a href="#" onclick="showForm('register-form'); return false;">
+            Register
+          </a>
+        </p>
+
       </form>
+
       <p id="login-error" style="color:red;"></p>
-      <p id="register-error" style="color:red;"></p>
+
     </div>
 
-    <!-- Register Form -->
+
+    <!-- ==================== REGISTER FORM ==================== -->
     <div class="form-box" id="register-form">
-      <form action="/register" method="POST">
-        <h2><i class="fas fa-user-plus"></i> Register</h2>
+
+      <form id="registerForm">
+
+        <h2>
+          <i class="fas fa-user-plus"></i>
+          Register
+        </h2>
+
         <div class="input-group">
           <i class="fas fa-user"></i>
-          <input type="text" name="name" placeholder="Name" required>
+          <input
+            type="text"
+            id="registerName"
+            name="name"
+            placeholder="Name"
+            required
+          >
         </div>
+
         <div class="input-group">
           <i class="fas fa-envelope"></i>
-          <input type="email" name="email" placeholder="Email" required>
+          <input
+            type="email"
+            id="registerEmail"
+            name="email"
+            placeholder="Email"
+            required
+          >
         </div>
+
         <div class="input-group">
           <i class="fas fa-lock"></i>
-          <input type="password" name="password" placeholder="Password" required>
+          <input
+            type="password"
+            id="registerPassword"
+            name="password"
+            placeholder="Password"
+            required
+          >
         </div>
+
         <div class="input-group">
           <i class="fas fa-users"></i>
-          <select name="role" required>
-            <option value="">--Select Role--</option>
-            <option value="user">User</option>
-            <option value="admin">Admin</option>
+
+          <select id="registerRole" name="role" required>
+
+            <option value="">
+              --Select Role--
+            </option>
+
+            <option value="user">
+              User
+            </option>
+
+            <option value="admin">
+              Admin
+            </option>
+
           </select>
+
         </div>
-        <button type="submit" class="register-btn">Register</button>
-        <p>Already have an account? <a href="#" onclick="showForm('login-form')">Login</a></p>
+
+        <button type="submit" class="register-btn">
+          Register
+        </button>
+
+        <p>
+          Already have an account?
+          <a href="#" onclick="showForm('login-form'); return false;">
+            Login
+          </a>
+        </p>
+
       </form>
+
+      <p id="register-error" style="color:red;"></p>
+
     </div>
+
   </div>
 
-  <script src="script.js"></script>
+
+  <!-- ==================== SCRIPT ==================== -->
+  <script>
+
+    /*
+     * IMPORTANT:
+     * Your frontend is hosted on Vercel
+     * Your backend is hosted on Render
+     */
+
+    const API_URL =
+      "https://attendence-management-xvy5.onrender.com";
+
+
+    // ==================== LOGIN ====================
+
+    const loginForm = document.getElementById("loginForm");
+
+    loginForm.addEventListener("submit", async function (event) {
+
+      event.preventDefault();
+
+      const email =
+        document.getElementById("loginEmail").value.trim();
+
+      const password =
+        document.getElementById("loginPassword").value;
+
+      const errorElement =
+        document.getElementById("login-error");
+
+      errorElement.textContent = "";
+
+      try {
+
+        const response = await fetch(
+          `${API_URL}/login`,
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type": "application/json"
+            },
+
+            credentials: "include",
+
+            body: JSON.stringify({
+              email: email,
+              password: password
+            })
+          }
+        );
+
+
+        const data = await response.json();
+
+
+        if (!response.ok) {
+
+          errorElement.textContent =
+            data.message || "Login failed.";
+
+          return;
+        }
+
+
+        /*
+         * Backend should return the user's role.
+         */
+
+        if (data.role === "admin") {
+
+          window.location.href =
+            `${API_URL}/admin_page.html`;
+
+        } else {
+
+          window.location.href =
+            `${API_URL}/user_page.html`;
+
+        }
+
+      } catch (error) {
+
+        console.error("Login error:", error);
+
+        errorElement.textContent =
+          "Unable to connect to server. Please try again.";
+
+      }
+
+    });
+
+
+    // ==================== REGISTER ====================
+
+    const registerForm =
+      document.getElementById("registerForm");
+
+    registerForm.addEventListener(
+      "submit",
+      async function (event) {
+
+        event.preventDefault();
+
+        const name =
+          document.getElementById("registerName").value.trim();
+
+        const email =
+          document.getElementById("registerEmail").value.trim();
+
+        const password =
+          document.getElementById("registerPassword").value;
+
+        const role =
+          document.getElementById("registerRole").value;
+
+        const errorElement =
+          document.getElementById("register-error");
+
+        errorElement.textContent = "";
+
+
+        try {
+
+          const response = await fetch(
+            `${API_URL}/register`,
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type": "application/json"
+              },
+
+              credentials: "include",
+
+              body: JSON.stringify({
+                name: name,
+                email: email,
+                password: password,
+                role: role
+              })
+            }
+          );
+
+
+          const data =
+            await response.json();
+
+
+          if (!response.ok) {
+
+            errorElement.textContent =
+              data.message || "Registration failed.";
+
+            return;
+          }
+
+
+          alert(
+            data.message ||
+            "Registration successful. Please login."
+          );
+
+
+          showForm("login-form");
+
+        } catch (error) {
+
+          console.error(
+            "Registration error:",
+            error
+          );
+
+          errorElement.textContent =
+            "Unable to connect to server. Please try again.";
+
+        }
+
+      }
+    );
+
+
+    // ==================== FORM SWITCH ====================
+
+    function showForm(formId) {
+
+      document
+        .querySelectorAll(".form-box")
+        .forEach(function (box) {
+
+          box.classList.remove("active");
+
+        });
+
+
+      document
+        .getElementById(formId)
+        .classList.add("active");
+
+
+      document.getElementById(
+        "login-error"
+      ).textContent = "";
+
+
+      document.getElementById(
+        "register-error"
+      ).textContent = "";
+
+    }
+
+  </script>
+
 </body>
 </html>
+```
