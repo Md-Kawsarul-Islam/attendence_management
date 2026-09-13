@@ -1,120 +1,336 @@
 <!DOCTYPE html>
+
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
-  <title>Admin Dashboard - Student & Course Management</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="admin.js" defer></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-</head>
-<body>
-  <!-- Navbar -->
-  <nav class="navbar">
-  <div class="logo">📘 Attendance System </div>
-  <button class="hamburger" onclick="toggleMenu()">☰</button>
-  <ul class="nav-links" id="navLinks">
-    <li><a href="/admin_page.html"><i class="fas fa-home"></i> Dashboard</a></li>
-    <li><a href="/attendance_report.html"><i class="fas fa-chart-line"></i> Reports</a></li>
-    <li><a href="/logout"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
-  </ul>
-</nav>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Dashboard Layout -->
+  <title>Admin Dashboard - Student & Course Management</title>
+
+  <link rel="stylesheet" href="style.css">
+
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+  >
+
+  <script src="admin.js" defer></script>
+
+</head>
+
+<body>
+
+  <!-- ==================== NAVBAR ==================== -->
+
+  <nav class="navbar">
+
+```
+<div class="logo">
+  📘 Attendance System
+</div>
+
+<button
+  class="hamburger"
+  onclick="toggleMenu()"
+  type="button"
+>
+  ☰
+</button>
+
+<ul class="nav-links" id="navLinks">
+
+  <li>
+    <a href="/admin_page.html">
+      <i class="fas fa-home"></i>
+      Dashboard
+    </a>
+  </li>
+
+  <li>
+    <a href="/attendance_report.html">
+      <i class="fas fa-chart-line"></i>
+      Reports
+    </a>
+  </li>
+
+  <li>
+    <a href="/logout">
+      <i class="fas fa-sign-out-alt"></i>
+      Logout
+    </a>
+  </li>
+
+</ul>
+```
+
+  </nav>
+
+  <!-- ==================== DASHBOARD ==================== -->
+
   <div class="dashboard">
-    <aside class="sidebar" id="sidebar">
+
+```
+<aside class="sidebar" id="sidebar">
+
   <ul>
-    <li><button onclick="showSection('studentSection')">Manage Students</button></li>
-    <li><button onclick="showSection('courseSection')">Manage Courses</button></li>
-    <li><a href="/attendance_report.html">Attendance Reports</a></li>
+
+    <li>
+      <button
+        type="button"
+        onclick="showSection('studentSection')"
+      >
+        Manage Students
+      </button>
+    </li>
+
+    <li>
+      <button
+        type="button"
+        onclick="showSection('courseSection')"
+      >
+        Manage Courses
+      </button>
+    </li>
+
+    <li>
+      <a href="/attendance_report.html">
+        Attendance Reports
+      </a>
+    </li>
+
   </ul>
+
 </aside>
 
 
-    <main class="content">
-      <h1>Welcome, Admin</h1>
+<!-- ==================== MAIN ==================== -->
 
-      <!-- Student Section -->
-      <div id="studentSection" class="section hidden">
-        <div class="card">
-          <h2>Add Student</h2>
-          <form onsubmit="event.preventDefault(); addStudent();">
-            <input type="text" id="sid" placeholder="Student ID">
-            <input type="text" id="sname" placeholder="Student Name">
-            <input type="text" id="dept" placeholder="Department">
-            <button type="submit">Add Student</button>
-          </form>
-        </div>
+<main class="content">
 
-        <div class="card">
-  <h2>Student List</h2>
+  <h1>
+    Welcome,
+    <span id="username">Admin</span>
+  </h1>
 
-  <!-- Search & Filter -->
-  <div class="search-filter">
-    <input type="text" id="searchInput" placeholder="Search by name or ID...">
-    <select id="deptFilter">
-      <option value="">All Departments</option>
-      <option value="CSE">CSE</option>
-      <option value="EEE">EEE</option>
-      <option value="BBA">BBA</option>
-      <!-- Add more departments as needed -->
-    </select>
-    <button onclick="applyFilter()">Filter</button>
-  </div>
 
-  <!-- Student Table -->
-  <table class="student-table">
-    <thead>
-      <tr>
-        <th>SID</th>
-        <th>Name</th>
-        <th>Department</th>
-        <th>Action</th>
-      </tr>
-    </thead>
-    <tbody id="studentList"></tbody>
-  </table>
-</div>
+  <!-- ==================== STUDENTS ==================== -->
+
+  <div
+    id="studentSection"
+    class="section hidden"
+  >
+
+    <div class="card">
+
+      <h2>Add Student</h2>
+
+      <form id="studentForm">
+
+        <input
+          type="text"
+          id="sid"
+          placeholder="Student ID"
+          required
+        >
+
+        <input
+          type="text"
+          id="sname"
+          placeholder="Student Name"
+          required
+        >
+
+        <input
+          type="text"
+          id="dept"
+          placeholder="Department"
+          required
+        >
+
+        <button type="submit">
+          Add Student
+        </button>
+
+      </form>
+
+    </div>
+
+
+    <div class="card">
+
+      <h2>Student List</h2>
+
+
+      <div class="search-filter">
+
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="Search by name or ID..."
+        >
+
+        <select id="deptFilter">
+
+          <option value="">
+            All Departments
+          </option>
+
+          <option value="CSE">
+            CSE
+          </option>
+
+          <option value="EEE">
+            EEE
+          </option>
+
+          <option value="BBA">
+            BBA
+          </option>
+
+        </select>
+
+        <button
+          type="button"
+          onclick="applyFilter()"
+        >
+          Filter
+        </button>
 
       </div>
 
-      <!-- Course Section -->
-      <div id="courseSection" class="section hidden">
-        <div class="card">
-          <h2>Add Course</h2>
-          <form onsubmit="event.preventDefault(); addCourse();">
-            <input type="text" id="courseName" placeholder="Course Name">
-            <button type="submit">Add Course</button>
-          </form>
-        </div>
 
-        <div class="card">
-          <h2>Course List</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Course ID</th>
-                <th>Course Name</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="courseList"></tbody>
-          </table>
-        </div>
-      </div>
-    </main>
+      <table class="student-table">
+
+        <thead>
+
+          <tr>
+            <th>SID</th>
+            <th>Name</th>
+            <th>Department</th>
+            <th>Action</th>
+          </tr>
+
+        </thead>
+
+        <tbody id="studentList"></tbody>
+
+      </table>
+
+    </div>
+
   </div>
+
+
+  <!-- ==================== COURSES ==================== -->
+
+  <div
+    id="courseSection"
+    class="section hidden"
+  >
+
+    <div class="card">
+
+      <h2>Add Course</h2>
+
+      <form id="courseForm">
+
+        <input
+          type="text"
+          id="courseName"
+          placeholder="Course Name"
+          required
+        >
+
+        <button type="submit">
+          Add Course
+        </button>
+
+      </form>
+
+    </div>
+
+
+    <div class="card">
+
+      <h2>Course List</h2>
+
+      <table>
+
+        <thead>
+
+          <tr>
+            <th>Course ID</th>
+            <th>Course Name</th>
+            <th>Action</th>
+          </tr>
+
+        </thead>
+
+        <tbody id="courseList"></tbody>
+
+      </table>
+
+    </div>
+
+  </div>
+
+</main>
+```
+
+  </div>
+
+  <!-- ==================== MENU ==================== -->
 
   <script>
-    // Toggle sections
+
     function showSection(sectionId) {
-      document.querySelectorAll('.section').forEach(sec => sec.classList.add('hidden'));
-      document.getElementById(sectionId).classList.remove('hidden');
+
+      document
+        .querySelectorAll(".section")
+        .forEach(section => {
+
+          section.classList.add("hidden");
+
+        });
+
+
+      const section =
+        document.getElementById(sectionId);
+
+      if (section) {
+
+        section.classList.remove("hidden");
+
+      }
+
     }
+
+
     function toggleMenu() {
-    document.getElementById('navLinks').classList.toggle('show');
-    document.getElementById('sidebar').classList.toggle('show');
-  }
+
+      document
+        .getElementById("navLinks")
+        .classList.toggle("show");
+
+      document
+        .getElementById("sidebar")
+        .classList.toggle("show");
+
+    }
+
+
+    // Show students by default
+    document.addEventListener(
+      "DOMContentLoaded",
+      function () {
+
+        showSection("studentSection");
+
+      }
+    );
 
   </script>
+
 </body>
 </html>

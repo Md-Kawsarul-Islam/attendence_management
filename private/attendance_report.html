@@ -1,47 +1,151 @@
 <!DOCTYPE html>
+
 <html lang="en">
+
 <head>
+
   <meta charset="UTF-8">
+
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1.0"
+
+>
+
   <title>Attendance Report</title>
-  <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <link
+    rel="stylesheet"
+    href="style.css"
+  >
+
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+  >
+
+  <script
+    src="https://cdn.jsdelivr.net/npm/chart.js"
+  ></script>
+
 </head>
+
 <body>
+
+  <!-- ==================== NAVBAR ==================== -->
+
   <nav class="navbar report-navbar">
-    <div class="logo">📊 Attendance Reports</div>
-    <ul class="nav-links">
-    <li><a href="/admin_page.html"><i class="fas fa-home"></i> Dashboard</a></li>
-      <li><a href="/logout"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
-    </ul>
+
+```
+<div class="logo">
+  📊 Attendance Reports
+</div>
+
+<ul class="nav-links">
+
+  <li>
+    <a href="/admin_page.html">
+      <i class="fas fa-home"></i>
+      Dashboard
+    </a>
+  </li>
+
+  <li>
+    <a href="/logout">
+      <i class="fas fa-sign-out-alt"></i>
+      Logout
+    </a>
+  </li>
+
+</ul>
+```
+
   </nav>
 
+  <!-- ==================== CONTENT ==================== -->
+
   <main class="content">
-    <h1>Attendance Summary</h1>
 
-    <!-- Filter -->
-    <div class="search-filter">
-      <input type="date" id="reportDate">
-      <select id="courseFilter"></select>
-      <button onclick="loadReport()">View Report</button>
-    </div>
+```
+<h1>
+  Attendance Summary
+</h1>
 
-    <!-- Report Table -->
-    <div class="card">
-      <table class="report-table">
-        <thead>
-          <tr>
-            <th>SID</th>
-            <th>Name</th>
-            <th>Course</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody id="reportList"></tbody>
-      </table>
-      <button onclick="updateAttendance()">Save Updates</button>
-    </div>
+
+<!-- FILTER -->
+
+<div class="search-filter">
+
+  <input
+    type="date"
+    id="reportDate"
+    required
+  >
+
+
+  <select id="courseFilter">
+
+    <option value="">
+      All Courses
+    </option>
+
+  </select>
+
+
+  <button
+    type="button"
+    onclick="loadReport()"
+  >
+    View Report
+  </button>
+
+</div>
+
+
+<!-- REPORT -->
+
+<div class="card">
+
+  <table class="report-table">
+
+    <thead>
+
+      <tr>
+
+        <th>SID</th>
+
+        <th>Name</th>
+
+        <th>Course</th>
+
+        <th>Status</th>
+
+      </tr>
+
+    </thead>
+
+
+    <tbody id="reportList">
+
+    </tbody>
+
+  </table>
+
+
+  <button
+    type="button"
+    onclick="updateAttendance()"
+  >
+    Save Updates
+  </button>
+
+</div>
+```
+
   </main>
-  <script src="report.js" defer></script>
+
+  <script src="report.js"></script>
+
 </body>
+
 </html>
