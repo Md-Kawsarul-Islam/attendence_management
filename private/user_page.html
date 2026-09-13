@@ -1,86 +1,198 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
     <title>User Dashboard - Attendance</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <link
+        rel="stylesheet"
+        href="/style.css"
+    >
+
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    >
 </head>
 
 <body>
 
 <!-- Navbar -->
 <nav class="navbar user-navbar">
-    <div class="logo">🎓 My Attendance</div>
+
+    <div class="logo">
+        🎓 My Attendance
+    </div>
+
     <ul class="nav-links">
-        <li><a href="/user_page.html"><i class="fas fa-check-circle"></i> Mark Attendance</a></li>
-        <li><a href="/attendance_report.html"><i class="fas fa-file-alt"></i> My Reports</a></li>
-        <li><a href="/logout"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+
+        <li>
+            <a href="/user_page.html">
+                <i class="fas fa-check-circle"></i>
+                Mark Attendance
+            </a>
+        </li>
+
+        <li>
+            <a href="/attendance_report.html">
+                <i class="fas fa-file-alt"></i>
+                My Reports
+            </a>
+        </li>
+
+        <li>
+            <a href="/logout">
+                <i class="fas fa-sign-out-alt"></i>
+                Logout
+            </a>
+        </li>
+
     </ul>
+
 </nav>
 
 
 <!-- Main Content -->
 <main class="content">
 
-    <h1>Welcome, <span id="username"></span></h1>
+    <h1>
+        Welcome,
+        <span id="username">User</span>
+    </h1>
+
 
     <!-- Select Course & Date -->
     <div class="card">
+
         <h2>Select Course & Date</h2>
 
-        <form onsubmit="event.preventDefault(); loadStudents();">
-            <select id="courseSelect" required>
-                <option value="">Select Course</option>
+        <form id="attendanceForm">
+
+            <select
+                id="courseSelect"
+                required
+            >
+                <option value="">
+                    Select Course
+                </option>
             </select>
 
-            <input type="date" id="attendanceDate" required>
+            <input
+                type="date"
+                id="attendanceDate"
+                required
+            >
 
             <button type="submit">
-                <i class="fas fa-users"></i> Load Students
+                <i class="fas fa-users"></i>
+                Load Students
             </button>
+
         </form>
+
     </div>
 
 
     <!-- Attendance Table -->
     <div class="card attendance-card">
+
         <h2>Mark Attendance</h2>
 
         <table class="attendance-table">
+
             <thead>
-            <tr>
-                <th>SID</th>
-                <th>Name</th>
-                <th>Status</th>
-            </tr>
+
+                <tr>
+                    <th>SID</th>
+                    <th>Name</th>
+                    <th>Status</th>
+                </tr>
+
             </thead>
 
             <tbody id="studentList">
-            <!-- Students will load here -->
+
+                <!-- Students will load here -->
+
             </tbody>
+
         </table>
 
-        <button onclick="submitAttendance()" class="submit-btn">
-            <i class="fas fa-save"></i> Submit Attendance
+
+        <button
+            type="button"
+            onclick="submitAttendance()"
+            class="submit-btn"
+        >
+
+            <i class="fas fa-save"></i>
+            Submit Attendance
+
         </button>
+
     </div>
 
 </main>
 
 
-<!-- Scripts -->
-<script src="user.js"></script>
+<!-- Main User JS -->
+<script src="/user.js"></script>
 
+
+<!-- Logged-in User -->
 <script>
-    // Load logged-in user name
-    fetch('/currentUser')
-        .then(res => res.json())
-        .then(data => {
-            document.getElementById("username").textContent = data.name;
-        });
+
+async function loadCurrentUser() {
+
+    try {
+
+        const response =
+            await fetch("/currentUser", {
+                credentials: "include"
+            });
+
+        if (!response.ok) {
+
+            window.location.href = "/";
+
+            return;
+        }
+
+        const data =
+            await response.json();
+
+        if (data.name) {
+
+            document.getElementById(
+                "username"
+            ).textContent = data.name;
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Current user error:",
+            error
+        );
+
+        window.location.href = "/";
+
+    }
+
+}
+
+loadCurrentUser();
+
 </script>
 
 </body>
+
 </html>

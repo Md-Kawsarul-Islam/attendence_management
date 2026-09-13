@@ -270,17 +270,9 @@ app.post('/register', async (req, res) => {
 // ======================================================
 
 app.post('/login', async (req, res) => {
-    const {
-        email,
-        password
-    } = req.body;
+    const { email, password } = req.body;
 
     try {
-
-        // ----------------------------------------------
-        // Validation
-        // ----------------------------------------------
-
         if (!email || !password) {
             return sendError(
                 res,
@@ -289,16 +281,10 @@ app.post('/login', async (req, res) => {
             );
         }
 
-
-        // ----------------------------------------------
-        // Find user
-        // ----------------------------------------------
-
         const [users] = await conn.query(
             'SELECT * FROM users WHERE email = ?',
             [email]
         );
-
 
         if (users.length === 0) {
             return sendError(
@@ -308,20 +294,12 @@ app.post('/login', async (req, res) => {
             );
         }
 
-
         const user = users[0];
 
-
-        // ----------------------------------------------
-        // Compare password
-        // ----------------------------------------------
-
-        const passwordMatch =
-            await bcrypt.compare(
-                password,
-                user.password
-            );
-
+        const passwordMatch = await bcrypt.compare(
+            password,
+            user.password
+        );
 
         if (!passwordMatch) {
             return sendError(
@@ -331,28 +309,13 @@ app.post('/login', async (req, res) => {
             );
         }
 
-
-        // ----------------------------------------------
-        // Create session
-        // ----------------------------------------------
-
         req.session.name = user.name;
         req.session.email = user.email;
         req.session.role = user.role;
 
-
-        // ----------------------------------------------
-        // Save session
-        // ----------------------------------------------
-
         req.session.save((error) => {
-
             if (error) {
-
-                console.error(
-                    'SESSION SAVE ERROR:',
-                    error
-                );
+                console.error('SESSION SAVE ERROR:', error);
 
                 return sendError(
                     res,
@@ -361,7 +324,19 @@ app.post('/login', async (req, res) => {
                 );
             }
 
+            // Normal browser form submission
+            if (
+                req.headers.accept &&
+                req.headers.accept.includes('text/html')
+            ) {
+                if (user.role === 'admin') {
+                    return res.redirect('/admin_page.html');
+                }
 
+                return res.redirect('/user_page.html');
+            }
+
+            // Fetch/API login
             return sendSuccess(
                 res,
                 'Login successful',
@@ -374,11 +349,7 @@ app.post('/login', async (req, res) => {
         });
 
     } catch (error) {
-
-        console.error(
-            'LOGIN ERROR:',
-            error
-        );
+        console.error('LOGIN ERROR:', error);
 
         return sendError(
             res,
