@@ -1,4 +1,3 @@
-```javascript
 const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
@@ -17,12 +16,15 @@ const FRONTEND_URL =
     process.env.FRONTEND_URL ||
     'https://attendence-management-nine.vercel.app';
 
+const IS_PRODUCTION =
+    process.env.NODE_ENV === 'production';
+
 
 // ======================================================
 // TRUST RENDER PROXY
 // ======================================================
 
-if (process.env.NODE_ENV === 'production') {
+if (IS_PRODUCTION) {
     app.set('trust proxy', 1);
 }
 
@@ -32,20 +34,19 @@ if (process.env.NODE_ENV === 'production') {
 // ======================================================
 
 app.use((req, res, next) => {
-
     const origin = req.headers.origin;
 
     if (origin === FRONTEND_URL) {
-        res.header('Access-Control-Allow-Origin', origin);
-        res.header('Access-Control-Allow-Credentials', 'true');
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
     }
 
-    res.header(
+    res.setHeader(
         'Access-Control-Allow-Methods',
-        'GET,POST,PUT,DELETE,OPTIONS'
+        'GET, POST, PUT, DELETE, OPTIONS'
     );
 
-    res.header(
+    res.setHeader(
         'Access-Control-Allow-Headers',
         'Content-Type'
     );
@@ -69,7 +70,10 @@ app.use(express.urlencoded({
 app.use(express.json());
 
 
-// Public frontend files
+// ======================================================
+// STATIC FILES
+// ======================================================
+
 app.use(express.static(
     path.join(__dirname, 'public')
 ));
@@ -83,7 +87,7 @@ app.use(
     session({
         secret:
             process.env.SESSION_SECRET ||
-            'change-this-session-secret',
+            'attendance-management-session-secret',
 
         resave: false,
 
@@ -92,15 +96,11 @@ app.use(
         cookie: {
             httpOnly: true,
 
-            // Required because Vercel and Render
-            // are different origins.
-            sameSite:
-                process.env.NODE_ENV === 'production'
-                    ? 'none'
-                    : 'lax',
+            sameSite: IS_PRODUCTION
+                ? 'none'
+                : 'lax',
 
-            secure:
-                process.env.NODE_ENV === 'production',
+            secure: IS_PRODUCTION,
 
             maxAge: 1000 * 60 * 60 * 24 * 7
         }
@@ -112,6 +112,15 @@ app.use(
 // HELPER FUNCTIONS
 // ======================================================
 
+function sendSuccess(res, message, data = {}) {
+    return res.status(200).json({
+        success: true,
+        message,
+        ...data
+    });
+}
+
+
 function sendError(res, status, message) {
     return res.status(status).json({
         success: false,
@@ -120,24 +129,11 @@ function sendError(res, status, message) {
 }
 
 
-function sendSuccess(res, message, extra = {}) {
-    return res.json({
-        success: true,
-        message,
-        ...extra
-    });
-}
-
-
 // ======================================================
-// AUTH
+// REGISTER
 // ======================================================
-
-
-// ====================== REGISTER ======================
 
 app.post('/register', async (req, res) => {
-
     const {
         name,
         email,
@@ -146,6 +142,10 @@ app.post('/register', async (req, res) => {
     } = req.body;
 
     try {
+
+        // ----------------------------------------------
+        // Validation
+        // ----------------------------------------------
 
         if (!name || !email || !password || !role) {
             return sendError(
@@ -156,7 +156,25 @@ app.post('/register', async (req, res) => {
         }
 
 
-        // Only an existing admin can create another admin.
+        // ----------------------------------------------
+        // Validate role
+        // ----------------------------------------------
+
+        const allowedRoles = ['user', 'admin'];
+
+        if (!allowedRoles.includes(role)) {
+            return sendError(
+                res,
+                400,
+                'Invalid role'
+            );
+        }
+
+
+        // ----------------------------------------------
+        // Only admin can create admin
+        // ----------------------------------------------
+
         if (
             role === 'admin' &&
             req.session.role !== 'admin'
@@ -169,14 +187,17 @@ app.post('/register', async (req, res) => {
         }
 
 
+        // ----------------------------------------------
         // Check existing email
-        const [rows] = await conn.query(
+        // ----------------------------------------------
+
+        const [existingUsers] = await conn.query(
             'SELECT email FROM users WHERE email = ?',
             [email]
         );
 
 
-        if (rows.length > 0) {
+        if (existingUsers.length > 0) {
             return sendError(
                 res,
                 409,
@@ -185,18 +206,25 @@ app.post('/register', async (req, res) => {
         }
 
 
+        // ----------------------------------------------
         // Hash password
+        // ----------------------------------------------
+
         const hashedPassword =
             await bcrypt.hash(password, 10);
 
 
-        // Insert user
+        // ----------------------------------------------
+        // Create user
+        // ----------------------------------------------
+
+        const sql =
+            'INSERT INTO users ' +
+            '(name, email, password, role) ' +
+            'VALUES (?, ?, ?, ?)';
+
         await conn.query(
-            `
-            INSERT INTO users
-            (name, email, password, role)
-            VALUES (?, ?, ?, ?)
-            `,
+            sql,
             [
                 name,
                 email,
@@ -206,16 +234,20 @@ app.post('/register', async (req, res) => {
         );
 
 
+        // ----------------------------------------------
+        // Success
+        // ----------------------------------------------
+
         return sendSuccess(
             res,
             'Registration successful. Please login.'
         );
 
-    } catch (err) {
+    } catch (error) {
 
         console.error(
             'REGISTER ERROR:',
-            err
+            error
         );
 
         return sendError(
@@ -227,17 +259,21 @@ app.post('/register', async (req, res) => {
 });
 
 
-// ====================== LOGIN ======================
+// ======================================================
+// LOGIN
+// ======================================================
 
 app.post('/login', async (req, res) => {
-
     const {
         email,
         password
     } = req.body;
 
-
     try {
+
+        // ----------------------------------------------
+        // Validation
+        // ----------------------------------------------
 
         if (!email || !password) {
             return sendError(
@@ -248,13 +284,17 @@ app.post('/login', async (req, res) => {
         }
 
 
-        const [rows] = await conn.query(
+        // ----------------------------------------------
+        // Find user
+        // ----------------------------------------------
+
+        const [users] = await conn.query(
             'SELECT * FROM users WHERE email = ?',
             [email]
         );
 
 
-        if (rows.length === 0) {
+        if (users.length === 0) {
             return sendError(
                 res,
                 401,
@@ -263,17 +303,21 @@ app.post('/login', async (req, res) => {
         }
 
 
-        const user = rows[0];
+        const user = users[0];
 
 
-        const match =
+        // ----------------------------------------------
+        // Compare password
+        // ----------------------------------------------
+
+        const passwordMatch =
             await bcrypt.compare(
                 password,
                 user.password
             );
 
 
-        if (!match) {
+        if (!passwordMatch) {
             return sendError(
                 res,
                 401,
@@ -282,26 +326,26 @@ app.post('/login', async (req, res) => {
         }
 
 
-        // ==============================
-        // CREATE SESSION
-        // ==============================
+        // ----------------------------------------------
+        // Create session
+        // ----------------------------------------------
 
         req.session.name = user.name;
-
         req.session.email = user.email;
-
         req.session.role = user.role;
 
 
-        // Explicitly save session before
-        // sending response.
-        req.session.save((err) => {
+        // ----------------------------------------------
+        // Save session
+        // ----------------------------------------------
 
-            if (err) {
+        req.session.save((error) => {
+
+            if (error) {
 
                 console.error(
                     'SESSION SAVE ERROR:',
-                    err
+                    error
                 );
 
                 return sendError(
@@ -316,19 +360,18 @@ app.post('/login', async (req, res) => {
                 res,
                 'Login successful',
                 {
-                    role: user.role,
                     name: user.name,
-                    email: user.email
+                    email: user.email,
+                    role: user.role
                 }
             );
-
         });
 
-    } catch (err) {
+    } catch (error) {
 
         console.error(
             'LOGIN ERROR:',
-            err
+            error
         );
 
         return sendError(
@@ -346,8 +389,7 @@ app.post('/login', async (req, res) => {
 
 app.get('/session-data', (req, res) => {
 
-    res.json({
-
+    const data = {
         login_error:
             req.session.login_error || null,
 
@@ -356,13 +398,15 @@ app.get('/session-data', (req, res) => {
 
         active_form:
             req.session.active_form || 'login'
-    });
+    };
 
 
-    // Clear old messages
     delete req.session.login_error;
     delete req.session.register_error;
     delete req.session.active_form;
+
+
+    return res.json(data);
 });
 
 
@@ -372,7 +416,11 @@ app.get('/session-data', (req, res) => {
 
 app.get('/currentUser', (req, res) => {
 
-    if (req.session.name) {
+    if (
+        req.session &&
+        req.session.name &&
+        req.session.role
+    ) {
 
         return res.json({
             success: true,
@@ -381,7 +429,6 @@ app.get('/currentUser', (req, res) => {
             email: req.session.email,
             role: req.session.role
         });
-
     }
 
 
@@ -389,6 +436,7 @@ app.get('/currentUser', (req, res) => {
         success: true,
         loggedIn: false,
         name: 'Guest',
+        email: null,
         role: 'none'
     });
 });
@@ -400,13 +448,13 @@ app.get('/currentUser', (req, res) => {
 
 app.get('/logout', (req, res) => {
 
-    req.session.destroy((err) => {
+    req.session.destroy((error) => {
 
-        if (err) {
+        if (error) {
 
             console.error(
                 'LOGOUT ERROR:',
-                err
+                error
             );
 
             return sendError(
@@ -417,15 +465,18 @@ app.get('/logout', (req, res) => {
         }
 
 
-        res.clearCookie('connect.sid', {
-            httpOnly: true,
-            sameSite:
-                process.env.NODE_ENV === 'production'
+        res.clearCookie(
+            'connect.sid',
+            {
+                httpOnly: true,
+
+                sameSite: IS_PRODUCTION
                     ? 'none'
                     : 'lax',
-            secure:
-                process.env.NODE_ENV === 'production'
-        });
+
+                secure: IS_PRODUCTION
+            }
+        );
 
 
         return sendSuccess(
@@ -437,7 +488,7 @@ app.get('/logout', (req, res) => {
 
 
 // ======================================================
-// PAGE PROTECTION
+// AUTHENTICATION / ROLE PROTECTION
 // ======================================================
 
 function protect(role) {
@@ -469,7 +520,7 @@ app.get(
     protect('admin'),
     (req, res) => {
 
-        res.sendFile(
+        return res.sendFile(
             path.join(
                 __dirname,
                 'private',
@@ -489,7 +540,7 @@ app.get(
     protect('user'),
     (req, res) => {
 
-        res.sendFile(
+        return res.sendFile(
             path.join(
                 __dirname,
                 'private',
@@ -501,7 +552,7 @@ app.get(
 
 
 // ======================================================
-// ATTENDANCE REPORT
+// ATTENDANCE REPORT PAGE
 // ======================================================
 
 app.get(
@@ -509,7 +560,7 @@ app.get(
     protect('admin'),
     (req, res) => {
 
-        res.sendFile(
+        return res.sendFile(
             path.join(
                 __dirname,
                 'private',
@@ -524,6 +575,8 @@ app.get(
 // STUDENTS
 // ======================================================
 
+
+// GET STUDENTS
 app.get('/students', async (req, res) => {
 
     try {
@@ -532,23 +585,25 @@ app.get('/students', async (req, res) => {
             'SELECT * FROM students ORDER BY sid ASC'
         );
 
-        res.json(rows);
+        return res.json(rows);
 
-    } catch (err) {
+    } catch (error) {
 
         console.error(
             'GET STUDENTS ERROR:',
-            err
+            error
         );
 
-        res.status(500).json({
-            success: false,
-            message: 'Failed to load students'
-        });
+        return sendError(
+            res,
+            500,
+            'Failed to load students'
+        );
     }
 });
 
 
+// ADD STUDENT
 app.post(
     '/addStudent',
     protect('admin'),
@@ -562,12 +617,23 @@ app.post(
 
         try {
 
+            if (!sid || !name || !dept) {
+                return sendError(
+                    res,
+                    400,
+                    'Student ID, name and department are required'
+                );
+            }
+
+
+            const sql =
+                'INSERT INTO students ' +
+                '(sid, name, dept) ' +
+                'VALUES (?, ?, ?)';
+
+
             await conn.query(
-                `
-                INSERT INTO students
-                (sid, name, dept)
-                VALUES (?, ?, ?)
-                `,
+                sql,
                 [
                     sid,
                     name,
@@ -575,27 +641,30 @@ app.post(
                 ]
             );
 
-            res.json({
-                success: true,
-                message: 'Student Added'
-            });
 
-        } catch (err) {
+            return sendSuccess(
+                res,
+                'Student Added'
+            );
+
+        } catch (error) {
 
             console.error(
                 'ADD STUDENT ERROR:',
-                err
+                error
             );
 
-            res.status(500).json({
-                success: false,
-                message: 'Failed to add student'
-            });
+            return sendError(
+                res,
+                500,
+                'Failed to add student'
+            );
         }
     }
 );
 
 
+// DELETE STUDENT
 app.delete(
     '/deleteStudent/:id',
     protect('admin'),
@@ -608,27 +677,30 @@ app.delete(
                 [req.params.id]
             );
 
-            res.json({
-                success: true,
-                message: 'Deleted'
-            });
 
-        } catch (err) {
+            return sendSuccess(
+                res,
+                'Student Deleted'
+            );
+
+        } catch (error) {
 
             console.error(
                 'DELETE STUDENT ERROR:',
-                err
+                error
             );
 
-            res.status(500).json({
-                success: false,
-                message: 'Failed to delete student'
-            });
+            return sendError(
+                res,
+                500,
+                'Failed to delete student'
+            );
         }
     }
 );
 
 
+// UPDATE STUDENT
 app.put(
     '/updateStudent/:id',
     protect('admin'),
@@ -641,12 +713,23 @@ app.put(
 
         try {
 
+            if (!name || !dept) {
+                return sendError(
+                    res,
+                    400,
+                    'Name and department are required'
+                );
+            }
+
+
+            const sql =
+                'UPDATE students ' +
+                'SET name = ?, dept = ? ' +
+                'WHERE id = ?';
+
+
             await conn.query(
-                `
-                UPDATE students
-                SET name = ?, dept = ?
-                WHERE id = ?
-                `,
+                sql,
                 [
                     name,
                     dept,
@@ -654,22 +737,24 @@ app.put(
                 ]
             );
 
-            res.json({
-                success: true,
-                message: 'Updated'
-            });
 
-        } catch (err) {
+            return sendSuccess(
+                res,
+                'Student Updated'
+            );
+
+        } catch (error) {
 
             console.error(
                 'UPDATE STUDENT ERROR:',
-                err
+                error
             );
 
-            res.status(500).json({
-                success: false,
-                message: 'Failed to update student'
-            });
+            return sendError(
+                res,
+                500,
+                'Failed to update student'
+            );
         }
     }
 );
@@ -679,6 +764,8 @@ app.put(
 // COURSES
 // ======================================================
 
+
+// GET COURSES
 app.get('/courses', async (req, res) => {
 
     try {
@@ -687,23 +774,25 @@ app.get('/courses', async (req, res) => {
             'SELECT * FROM courses'
         );
 
-        res.json(rows);
+        return res.json(rows);
 
-    } catch (err) {
+    } catch (error) {
 
         console.error(
             'GET COURSES ERROR:',
-            err
+            error
         );
 
-        res.status(500).json({
-            success: false,
-            message: 'Failed to load courses'
-        });
+        return sendError(
+            res,
+            500,
+            'Failed to load courses'
+        );
     }
 });
 
 
+// ADD COURSE
 app.post(
     '/addCourse',
     protect('admin'),
@@ -713,46 +802,52 @@ app.post(
             course_name
         } = req.body;
 
-        if (!course_name) {
-
-            return res.status(400).json({
-                success: false,
-                message: 'Course name required'
-            });
-        }
-
         try {
 
+            if (!course_name) {
+                return sendError(
+                    res,
+                    400,
+                    'Course name required'
+                );
+            }
+
+
+            const sql =
+                'INSERT INTO courses ' +
+                '(course_name) ' +
+                'VALUES (?)';
+
+
             await conn.query(
-                `
-                INSERT INTO courses
-                (course_name)
-                VALUES (?)
-                `,
+                sql,
                 [course_name]
             );
 
-            res.json({
-                success: true,
-                message: 'Course Added'
-            });
 
-        } catch (err) {
+            return sendSuccess(
+                res,
+                'Course Added'
+            );
+
+        } catch (error) {
 
             console.error(
                 'ADD COURSE ERROR:',
-                err
+                error
             );
 
-            res.status(500).json({
-                success: false,
-                message: 'Failed to add course'
-            });
+            return sendError(
+                res,
+                500,
+                'Failed to add course'
+            );
         }
     }
 );
 
 
+// DELETE COURSE
 app.delete(
     '/deleteCourse/:id',
     protect('admin'),
@@ -765,27 +860,30 @@ app.delete(
                 [req.params.id]
             );
 
-            res.json({
-                success: true,
-                message: 'Course Deleted'
-            });
 
-        } catch (err) {
+            return sendSuccess(
+                res,
+                'Course Deleted'
+            );
+
+        } catch (error) {
 
             console.error(
                 'DELETE COURSE ERROR:',
-                err
+                error
             );
 
-            res.status(500).json({
-                success: false,
-                message: 'Failed to delete course'
-            });
+            return sendError(
+                res,
+                500,
+                'Failed to delete course'
+            );
         }
     }
 );
 
 
+// UPDATE COURSE
 app.put(
     '/updateCourse/:id',
     protect('admin'),
@@ -795,44 +893,49 @@ app.put(
             course_name
         } = req.body;
 
-        if (!course_name) {
-
-            return res.status(400).json({
-                success: false,
-                message: 'Course name required'
-            });
-        }
-
         try {
 
+            if (!course_name) {
+                return sendError(
+                    res,
+                    400,
+                    'Course name required'
+                );
+            }
+
+
+            const sql =
+                'UPDATE courses ' +
+                'SET course_name = ? ' +
+                'WHERE id = ?';
+
+
             await conn.query(
-                `
-                UPDATE courses
-                SET course_name = ?
-                WHERE id = ?
-                `,
+                sql,
                 [
                     course_name,
                     req.params.id
                 ]
             );
 
-            res.json({
-                success: true,
-                message: 'Course Updated'
-            });
 
-        } catch (err) {
+            return sendSuccess(
+                res,
+                'Course Updated'
+            );
+
+        } catch (error) {
 
             console.error(
                 'UPDATE COURSE ERROR:',
-                err
+                error
             );
 
-            res.status(500).json({
-                success: false,
-                message: 'Failed to update course'
-            });
+            return sendError(
+                res,
+                500,
+                'Failed to update course'
+            );
         }
     }
 );
@@ -842,6 +945,8 @@ app.put(
 // ATTENDANCE
 // ======================================================
 
+
+// SUBMIT ATTENDANCE
 app.post(
     '/submitAttendance',
     protect('admin'),
@@ -861,19 +966,20 @@ app.post(
             attendance.length === 0
         ) {
 
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid attendance data'
-            });
+            return sendError(
+                res,
+                400,
+                'Invalid attendance data'
+            );
         }
 
 
         const values = attendance.map(
-            (a) => [
-                a.student_id,
+            (item) => [
+                item.student_id,
                 course_id,
                 date,
-                a.status
+                item.status
             ]
         );
 
@@ -881,35 +987,36 @@ app.post(
         try {
 
             await conn.query(
-                `
-                INSERT INTO attendance
-                (student_id, course_id, date, status)
-                VALUES ?
-                `,
+                'INSERT INTO attendance ' +
+                '(student_id, course_id, date, status) ' +
+                'VALUES ?',
                 [values]
             );
 
-            res.json({
-                success: true,
-                message: 'Attendance Saved'
-            });
 
-        } catch (err) {
+            return sendSuccess(
+                res,
+                'Attendance Saved'
+            );
+
+        } catch (error) {
 
             console.error(
                 'SUBMIT ATTENDANCE ERROR:',
-                err
+                error
             );
 
-            res.status(500).json({
-                success: false,
-                message: 'Failed to save attendance'
-            });
+            return sendError(
+                res,
+                500,
+                'Failed to save attendance'
+            );
         }
     }
 );
 
 
+// GET ATTENDANCE BY DATE
 app.get(
     '/attendance/:date',
     async (req, res) => {
@@ -917,32 +1024,31 @@ app.get(
         try {
 
             const [rows] = await conn.query(
-                `
-                SELECT *
-                FROM attendance
-                WHERE date = ?
-                `,
+                'SELECT * FROM attendance WHERE date = ?',
                 [req.params.date]
             );
 
-            res.json(rows);
 
-        } catch (err) {
+            return res.json(rows);
+
+        } catch (error) {
 
             console.error(
                 'GET ATTENDANCE ERROR:',
-                err
+                error
             );
 
-            res.status(500).json({
-                success: false,
-                message: 'Failed to load attendance'
-            });
+            return sendError(
+                res,
+                500,
+                'Failed to load attendance'
+            );
         }
     }
 );
 
 
+// ATTENDANCE REPORT
 app.get(
     '/attendanceReport',
     protect('admin'),
@@ -956,63 +1062,63 @@ app.get(
 
         if (!course_id || !date) {
 
-            return res.status(400).json({
-                success: false,
-                message:
-                    'Course ID and Date are required'
-            });
+            return sendError(
+                res,
+                400,
+                'Course ID and Date are required'
+            );
         }
 
 
-        const sql = `
-            SELECT
-                attendance.id,
-                students.sid,
-                students.name,
-                courses.course_name,
-                attendance.status,
-                attendance.date
-            FROM attendance
-            JOIN students
-                ON attendance.student_id = students.id
-            JOIN courses
-                ON attendance.course_id = courses.id
-            WHERE attendance.course_id = ?
-                AND attendance.date = ?
-            ORDER BY students.sid ASC
-        `;
+        const sql =
+            'SELECT ' +
+            'attendance.id, ' +
+            'students.sid, ' +
+            'students.name, ' +
+            'courses.course_name, ' +
+            'attendance.status, ' +
+            'attendance.date ' +
+            'FROM attendance ' +
+            'JOIN students ' +
+            'ON attendance.student_id = students.id ' +
+            'JOIN courses ' +
+            'ON attendance.course_id = courses.id ' +
+            'WHERE attendance.course_id = ? ' +
+            'AND attendance.date = ? ' +
+            'ORDER BY students.sid ASC';
 
 
         try {
 
-            const [rows] =
-                await conn.query(
-                    sql,
-                    [
-                        course_id,
-                        date
-                    ]
-                );
+            const [rows] = await conn.query(
+                sql,
+                [
+                    course_id,
+                    date
+                ]
+            );
 
-            res.json(rows);
 
-        } catch (err) {
+            return res.json(rows);
+
+        } catch (error) {
 
             console.error(
                 'ATTENDANCE REPORT ERROR:',
-                err
+                error
             );
 
-            res.status(500).json({
-                success: false,
-                message:
-                    'Failed to load attendance report'
-            });
+            return sendError(
+                res,
+                500,
+                'Failed to load attendance report'
+            );
         }
     }
 );
 
 
+// UPDATE ATTENDANCE
 app.put(
     '/updateAttendance',
     protect('admin'),
@@ -1024,50 +1130,47 @@ app.put(
 
         if (!Array.isArray(updates)) {
 
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid updates'
-            });
+            return sendError(
+                res,
+                400,
+                'Invalid updates'
+            );
         }
 
 
         try {
 
-            await Promise.all(
-                updates.map(
-                    (u) =>
-                        conn.query(
-                            `
-                            UPDATE attendance
-                            SET status = ?
-                            WHERE id = ?
-                            `,
-                            [
-                                u.status,
-                                u.id
-                            ]
-                        )
-                )
+            for (const item of updates) {
+
+                await conn.query(
+                    'UPDATE attendance ' +
+                    'SET status = ? ' +
+                    'WHERE id = ?',
+                    [
+                        item.status,
+                        item.id
+                    ]
+                );
+            }
+
+
+            return sendSuccess(
+                res,
+                'Attendance Updated'
             );
 
-
-            res.json({
-                success: true,
-                message: 'Updated'
-            });
-
-        } catch (err) {
+        } catch (error) {
 
             console.error(
                 'UPDATE ATTENDANCE ERROR:',
-                err
+                error
             );
 
-            res.status(500).json({
-                success: false,
-                message:
-                    'Error updating attendance'
-            });
+            return sendError(
+                res,
+                500,
+                'Error updating attendance'
+            );
         }
     }
 );
@@ -1079,11 +1182,10 @@ app.put(
 
 app.get('/health', (req, res) => {
 
-    res.json({
+    return res.json({
         ok: true,
         message: 'Attendance backend is running'
     });
-
 });
 
 
@@ -1093,11 +1195,41 @@ app.get('/health', (req, res) => {
 
 app.get('/', (req, res) => {
 
-    res.json({
+    return res.json({
         success: true,
         message: 'Attendance Management API is running'
     });
+});
 
+
+// ======================================================
+// 404 HANDLER
+// ======================================================
+
+app.use((req, res) => {
+
+    return res.status(404).json({
+        success: false,
+        message: 'Route not found'
+    });
+});
+
+
+// ======================================================
+// GLOBAL ERROR HANDLER
+// ======================================================
+
+app.use((error, req, res, next) => {
+
+    console.error(
+        'GLOBAL ERROR:',
+        error
+    );
+
+    return res.status(500).json({
+        success: false,
+        message: 'Internal server error'
+    });
 });
 
 
@@ -1118,10 +1250,13 @@ if (require.main === module) {
             console.log(
                 `Frontend URL: ${FRONTEND_URL}`
             );
+
+            console.log(
+                `Production mode: ${IS_PRODUCTION}`
+            );
         }
     );
 }
 
 
 module.exports = app;
-```
