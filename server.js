@@ -441,7 +441,6 @@ app.get('/logout', (req, res) => {
             );
         }
 
-
         res.clearCookie(
             'connect.sid',
             {
@@ -455,11 +454,8 @@ app.get('/logout', (req, res) => {
             }
         );
 
-
-        return sendSuccess(
-            res,
-            'Logout successful'
-        );
+        // Redirect to login page
+        return res.redirect('/');
     });
 });
 
