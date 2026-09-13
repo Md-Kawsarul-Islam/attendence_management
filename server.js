@@ -33,12 +33,18 @@ if (IS_PRODUCTION) {
 // CORS
 // ======================================================
 
+const allowedOrigins = [
+    'https://attendence-management-nine.vercel.app',
+    FRONTEND_URL
+].map(origin => origin.replace(/\/$/, '').trim());
+
 app.use((req, res, next) => {
     const origin = req.headers.origin;
 
-    if (origin === FRONTEND_URL) {
+    if (origin && allowedOrigins.includes(origin.replace(/\/$/, ''))) {
         res.setHeader('Access-Control-Allow-Origin', origin);
         res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.setHeader('Vary', 'Origin');
     }
 
     res.setHeader(
